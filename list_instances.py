@@ -1,5 +1,5 @@
 # Oracle OCI - Instance report script
-# Version: 1.0 15-Feb 2018
+# Version: 1.1 15-Feb 2018
 # Written by: richard.garsthagen@oracle.com
 #
 # This script will create a CSV report for all compute instances in your OCI account,
@@ -17,7 +17,7 @@ import json
 
 # Script configuation ###################################################################################
 
-configs = ["c:\\oci\\config_phoenix","c:\\oci\\config_ashburn","c:\\oci\\config_frankfurt"] # Define config files to be used. You will need a seperate config file per region and/or account
+configs = ["c:\\oci\\config"] # Define config files to be used. You will need a seperate config file per region and/or account
 AllPredefinedTags = True  # use only predefined tags from root compartment or include all compartment tags as well
 NoValueString = "n/a"      # what data should be used when no data is available
 ReportFile = "C:\\oci\\report.csv"
@@ -25,19 +25,30 @@ EndLine = "\n"
 # #######################################################################################################
 
 
-def DisplayInstances(instances, compartmentName):
+def DisplayInstances(instances, compartmentName, instancetype):
   for instance in instances:
-      #print (instance)
+    #print (instance)
+    
+    instancetypename = ""
+    tagtxt = ""
+    if instancetype=="Compute":
+      instancetypename = "Compute"
+      version = NoValueString
       namespaces = instance.defined_tags
-      tagtxt = ""
       for customertag in customertags:
          try:
            tagtxt = tagtxt + "," + namespaces[customertag[0]][customertag[1]]
          except:
            tagtxt = tagtxt + "," + NoValueString
-              
-      print ("{},{},{},{},{}{}".format(instance.display_name, instance.lifecycle_state, instance.shape, compartmentName, instance.availability_domain, tagtxt))    
-      report.write("{},{},{},{},{}{}{}".format(instance.display_name, instance.lifecycle_state, instance.shape, compartmentName, instance.availability_domain, tagtxt, EndLine))    
+    if instancetype=="DB":
+      instancetypename= instance.database_edition
+      version = instance.version
+      for customertag in customertags:
+        tagtxt = tagtxt + "," + NoValueString  
+      
+    line = "{},{},{},{},{},{},{}{}".format(instance.display_name, instance.lifecycle_state, instancetypename, version, instance.shape, compartmentName, instance.availability_domain, tagtxt)
+    print (line)
+    report.write(line + EndLine)    
 
 #Do only once
 report = open(ReportFile,'w')
@@ -95,7 +106,12 @@ for c in configs:
   response = ComputeClient.list_instances(compartment_id=RootCompartmentID)
   instances = response.data
   compartmentName = "Root"
-  DisplayInstances(instances, compartmentName)
+  DisplayInstances(instances, compartmentName, "Compute")
+
+  databaseClient = oci.database.DatabaseClient(config)
+  response = databaseClient.list_db_systems(compartment_id=RootCompartmentID)
+  DisplayInstances(response.data, compartmentName, "DB")
+  
 
   # Check instances for all the underlaying Compartments   
   response = identity.list_compartments(RootCompartmentID)
@@ -106,7 +122,11 @@ for c in configs:
     compartmentID = compartment.id
     response = ComputeClient.list_instances(compartment_id=compartmentID)
     instances = response.data
-    DisplayInstances(instances, compartmentName)
+    DisplayInstances(instances, compartmentName, "Compute")
+
+    databaseClient = oci.database.DatabaseClient(config)
+    response = databaseClient.list_db_systems(compartment_id=compartmentID)
+    DisplayInstances(response.data, compartmentName, "DB")
     
 print (" ")
 print ("Done, report written to: {}".format(ReportFile))
