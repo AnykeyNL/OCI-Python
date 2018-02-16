@@ -68,9 +68,12 @@ def DisplayInstances(instances, compartmentName, instancetype):
       instancetypename= "DB " + instance.database_edition
       version = instance.version
       for customertag in customertags:
-        tagtxt = tagtxt + "," + NoValueString  
+        tagtxt = tagtxt + "," + NoValueString
+
+    # Remove prefix from AD Domain
+    prefix,AD = instance.availability_domain.split(":")
       
-    line = "{},{},{},{},{},{},{},{},{}{}".format(instance.display_name, instance.lifecycle_state, instancetypename, version, instance.shape, compartmentName, instance.availability_domain, privateips, publicips, tagtxt)
+    line = "{},{},{},{},{},{},{},{},{}{}".format(instance.display_name, instance.lifecycle_state, instancetypename, version, instance.shape, compartmentName, AD, privateips, publicips, tagtxt)
     print (line)
     report.write(line + EndLine)    
 
