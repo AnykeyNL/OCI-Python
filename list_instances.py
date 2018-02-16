@@ -31,7 +31,8 @@ def DisplayInstances(instances, compartmentName, instancetype):
     publicips = ""
     instancetypename = ""
     tagtxt = ""
-
+    OS = ""
+    #print (instance)
     # Handle details for Compute Instances
     if instancetype=="Compute":
       response = ComputeClient.list_vnic_attachments(compartment_id = instance.compartment_id, instance_id = instance.id)
@@ -45,6 +46,11 @@ def DisplayInstances(instances, compartmentName, instancetype):
       instancetypename = "Compute"
       version = NoValueString
       namespaces = instance.defined_tags
+
+      response = ComputeClient.get_image(instance.source_details.image_id)
+      imagedetails = response.data
+      OS = imagedetails.display_name
+      
       for customertag in customertags:
          try:
            tagtxt = tagtxt + "," + namespaces[customertag[0]][customertag[1]]
@@ -70,10 +76,12 @@ def DisplayInstances(instances, compartmentName, instancetype):
       for customertag in customertags:
         tagtxt = tagtxt + "," + NoValueString
 
+      OS = "Oracle Linux"
+
     # Remove prefix from AD Domain
     prefix,AD = instance.availability_domain.split(":")
       
-    line = "{},{},{},{},{},{},{},{},{}{}".format(instance.display_name, instance.lifecycle_state, instancetypename, version, instance.shape, compartmentName, AD, privateips, publicips, tagtxt)
+    line = "{},{},{},{},{},{},{},{},{},{}{}".format(instance.display_name, instance.lifecycle_state, instancetypename, version, OS, instance.shape, compartmentName, AD, privateips, publicips, tagtxt)
     print (line)
     report.write(line + EndLine)    
 
@@ -81,7 +89,7 @@ def DisplayInstances(instances, compartmentName, instancetype):
 report = open(ReportFile,'w')
 
 customertags = []
-header = "Name,State,Service,Version,Shape,Compartment,AD,PrivateIP,PublicIP"
+header = "Name,State,Service,Version,OS,Shape,Compartment,AD,PrivateIP,PublicIP"
 config = oci.config.from_file(configs[0])
 
 identity = oci.identity.IdentityClient(config)
