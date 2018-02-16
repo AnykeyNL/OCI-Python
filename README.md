@@ -6,3 +6,5 @@ It used the Oracle Python SDK: https://oracle-cloud-infrastructure-python-sdk.re
 
 Samples scripts:
 - List instances: This creates a CSV file with all Instances and details, across all compartments and regions, including predefined tags
+
+![alt text](https://raw.githubusercontent.com/AnykeyNL/OCI-Python/master/example.png)
