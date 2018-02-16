@@ -27,7 +27,17 @@ EndLine = "\n"
 
 def DisplayInstances(instances, compartmentName, instancetype):
   for instance in instances:
-    #print (instance)
+    print (instance)
+
+    response = ComputeClient.list_vnic_attachments(compartment_id = instance.compartment_id, instance_id = instance.id)
+    vnics = response.data
+
+    print (vnics)
+    for vnic in vnics:
+      responsenic = NetworkClient.get_vnic(vnic.vnic_id)
+      print (responsenic.data)
+      
+      
     
     instancetypename = ""
     tagtxt = ""
@@ -60,7 +70,8 @@ config = oci.config.from_file(configs[0])
 identity = oci.identity.IdentityClient(config)
 user = identity.get_user(config["user"]).data
 RootCompartmentID = user.compartment_id
-   
+
+  
 print ("Logged in as: {} @ {}".format(user.description, config["region"]))
 print (" ")
 
@@ -101,6 +112,7 @@ for c in configs:
   RootCompartmentID = user.compartment_id
  
   ComputeClient = oci.core.ComputeClient(config)
+  NetworkClient = oci.core.VirtualNetworkClient(config)
 
   # Check instances for the root container
   response = ComputeClient.list_instances(compartment_id=RootCompartmentID)
