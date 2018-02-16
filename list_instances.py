@@ -37,11 +37,16 @@ def DisplayInstances(instances, compartmentName, instancetype):
     if instancetype=="Compute":
       response = ComputeClient.list_vnic_attachments(compartment_id = instance.compartment_id, instance_id = instance.id)
       vnics = response.data
-      for vnic in vnics:
-        responsenic = NetworkClient.get_vnic(vnic_id=vnic.vnic_id)
-        nicinfo = responsenic.data
-        privateips = privateips + nicinfo.private_ip + " "
-        publicips = publicips + nicinfo.public_ip + " "
+      try:
+        for vnic in vnics:
+          responsenic = NetworkClient.get_vnic(vnic_id=vnic.vnic_id)
+          nicinfo = responsenic.data
+          privateips = privateips + nicinfo.private_ip + " "
+          publicips = publicips + nicinfo.public_ip + " "
+      except:
+        privateips = "unknown"
+        publicips = "unkown" 
+          
           
       instancetypename = "Compute"
       version = NoValueString
