@@ -1,5 +1,5 @@
 # Oracle OCI - Instance report script
-# Version: 1.1 15-Feb 2018
+# Version: 1.2 16-Feb 2018
 # Written by: richard.garsthagen@oracle.com
 #
 # This script will create a CSV report for all compute instances in your OCI account,
@@ -17,7 +17,7 @@ import json
 
 # Script configuation ###################################################################################
 
-configs = ["c:\\oci\\config"] # Define config files to be used. You will need a seperate config file per region and/or account
+configs = ["c:\\oci\\config_frankfurt","c:\\oci\\config_phoenix","c:\\oci\\config_ashburn"] # Define config files to be used. You will need a seperate config file per region and/or account
 AllPredefinedTags = True  # use only predefined tags from root compartment or include all compartment tags as well
 NoValueString = "n/a"      # what data should be used when no data is available
 ReportFile = "C:\\oci\\report.csv"
@@ -27,21 +27,21 @@ EndLine = "\n"
 
 def DisplayInstances(instances, compartmentName, instancetype):
   for instance in instances:
-    print (instance)
-
-    response = ComputeClient.list_vnic_attachments(compartment_id = instance.compartment_id, instance_id = instance.id)
-    vnics = response.data
-
-    print (vnics)
-    for vnic in vnics:
-      responsenic = NetworkClient.get_vnic(vnic.vnic_id)
-      print (responsenic.data)
-      
-      
-    
+    privateips = ""
+    publicips = ""
     instancetypename = ""
     tagtxt = ""
+
+    # Handle details for Compute Instances
     if instancetype=="Compute":
+      response = ComputeClient.list_vnic_attachments(compartment_id = instance.compartment_id, instance_id = instance.id)
+      vnics = response.data
+      for vnic in vnics:
+        responsenic = NetworkClient.get_vnic(vnic_id=vnic.vnic_id)
+        nicinfo = responsenic.data
+        privateips = privateips + nicinfo.private_ip + " "
+        publicips = publicips + nicinfo.public_ip + " "
+          
       instancetypename = "Compute"
       version = NoValueString
       namespaces = instance.defined_tags
@@ -50,13 +50,27 @@ def DisplayInstances(instances, compartmentName, instancetype):
            tagtxt = tagtxt + "," + namespaces[customertag[0]][customertag[1]]
          except:
            tagtxt = tagtxt + "," + NoValueString
+
+    # Handle details for Database Instances
     if instancetype=="DB":
-      instancetypename= instance.database_edition
+      response = databaseClient.list_db_nodes(compartment_id = instance.compartment_id, db_system_id = instance.id)
+      dbnodes = response.data
+      try:
+        for dbnode in dbnodes:
+          responsenic = NetworkClient.get_vnic(vnic_id=dbnode.vnic_id)
+          nicinfo = responsenic.data
+          privateips = privateips + nicinfo.private_ip + " "
+          publicips = publicips + nicinfo.public_ip + " "
+      except:
+          privateips = "unknown"
+          publicips = "unkown"    
+      
+      instancetypename= "DB " + instance.database_edition
       version = instance.version
       for customertag in customertags:
         tagtxt = tagtxt + "," + NoValueString  
       
-    line = "{},{},{},{},{},{},{}{}".format(instance.display_name, instance.lifecycle_state, instancetypename, version, instance.shape, compartmentName, instance.availability_domain, tagtxt)
+    line = "{},{},{},{},{},{},{},{},{}{}".format(instance.display_name, instance.lifecycle_state, instancetypename, version, instance.shape, compartmentName, instance.availability_domain, privateips, publicips, tagtxt)
     print (line)
     report.write(line + EndLine)    
 
@@ -64,13 +78,12 @@ def DisplayInstances(instances, compartmentName, instancetype):
 report = open(ReportFile,'w')
 
 customertags = []
-header = "Name,State,Shape,Compartment,AD"
+header = "Name,State,Service,Version,Shape,Compartment,AD,PrivateIP,PublicIP"
 config = oci.config.from_file(configs[0])
 
 identity = oci.identity.IdentityClient(config)
 user = identity.get_user(config["user"]).data
 RootCompartmentID = user.compartment_id
-
   
 print ("Logged in as: {} @ {}".format(user.description, config["region"]))
 print (" ")
