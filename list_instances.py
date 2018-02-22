@@ -13,7 +13,6 @@
 # - In the script specify the config files to be used for running the report
 
 import oci
-import json
 
 # Script configuation ###################################################################################
 
@@ -27,6 +26,8 @@ EndLine = "\n"
 
 def DisplayInstances(instances, compartmentName, instancetype):
   for instance in instances:
+    print (instance.id)
+    
     privateips = ""
     publicips = ""
     instancetypename = ""
