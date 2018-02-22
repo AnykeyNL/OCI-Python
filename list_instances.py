@@ -26,8 +26,7 @@ EndLine = "\n"
 
 def DisplayInstances(instances, compartmentName, instancetype):
   for instance in instances:
-    print (instance.id)
-    
+        
     privateips = ""
     publicips = ""
     instancetypename = ""
