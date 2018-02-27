@@ -1,5 +1,5 @@
 # Oracle OCI - Instance report script
-# Version: 1.2 16-Feb 2018
+# Version: 1.3 27-Feb 2018
 # Written by: richard.garsthagen@oracle.com
 #
 # This script will create a CSV report for all compute instances in your OCI account,
@@ -14,6 +14,7 @@
 
 import oci
 import json
+import shapes
 
 # Script configuation ###################################################################################
 
@@ -32,9 +33,11 @@ def DisplayInstances(instances, compartmentName, instancetype):
     instancetypename = ""
     tagtxt = ""
     OS = ""
+ 
     #print (instance)
     # Handle details for Compute Instances
     if instancetype=="Compute":
+      OCPU, MEM, SSD = shapes.ComputeShape(instance.shape)
       response = ComputeClient.list_vnic_attachments(compartment_id = instance.compartment_id, instance_id = instance.id)
       vnics = response.data
       try:
@@ -44,10 +47,9 @@ def DisplayInstances(instances, compartmentName, instancetype):
           privateips = privateips + nicinfo.private_ip + " "
           publicips = publicips + nicinfo.public_ip + " "
       except:
-        privateips = "unknown"
-        publicips = "unkown" 
-          
-          
+        privateips = NoValueString
+        publicips = NoValueString
+        
       instancetypename = "Compute"
       version = NoValueString
       namespaces = instance.defined_tags
@@ -64,6 +66,8 @@ def DisplayInstances(instances, compartmentName, instancetype):
 
     # Handle details for Database Instances
     if instancetype=="DB":
+      OCPU, MEM, SSD = shapes.ComputeShape(instance.shape)
+      OCPU = instance.cpu_core_count # Overwrite Shape's CPU count, with DB enabled CPU count
       response = databaseClient.list_db_nodes(compartment_id = instance.compartment_id, db_system_id = instance.id)
       dbnodes = response.data
       try:
@@ -73,20 +77,20 @@ def DisplayInstances(instances, compartmentName, instancetype):
           privateips = privateips + nicinfo.private_ip + " "
           publicips = publicips + nicinfo.public_ip + " "
       except:
-          privateips = "unknown"
-          publicips = "unkown"    
+          privateips = NoValueString
+          publicips = NoValueString    
       
       instancetypename= "DB " + instance.database_edition
       version = instance.version
       for customertag in customertags:
         tagtxt = tagtxt + "," + NoValueString
 
-      OS = "Oracle Linux"
+      OS = "Oracle Linux 6.8"
 
     # Remove prefix from AD Domain
     prefix,AD = instance.availability_domain.split(":")
       
-    line = "{},{},{},{},{},{},{},{},{},{}{}".format(instance.display_name, instance.lifecycle_state, instancetypename, version, OS, instance.shape, compartmentName, AD, privateips, publicips, tagtxt)
+    line = "{},{},{},{},{},{},{},{},{},{},{},{},{}{}".format(instance.display_name, instance.lifecycle_state, instancetypename, version, OS, instance.shape, OCPU, MEM, SSD, compartmentName, AD, privateips, publicips, tagtxt)
     print (line)
     report.write(line + EndLine)    
 
@@ -94,7 +98,7 @@ def DisplayInstances(instances, compartmentName, instancetype):
 report = open(ReportFile,'w')
 
 customertags = []
-header = "Name,State,Service,Version,OS,Shape,Compartment,AD,PrivateIP,PublicIP"
+header = "Name,State,Service,Version,OS,Shape,OCPU,MEMORY,SSD,Compartment,AD,PrivateIP,PublicIP"
 config = oci.config.from_file(configs[0])
 
 identity = oci.identity.IdentityClient(config)
@@ -142,7 +146,7 @@ for c in configs:
  
   ComputeClient = oci.core.ComputeClient(config)
   NetworkClient = oci.core.VirtualNetworkClient(config)
-
+  
   # Check instances for the root container
   response = ComputeClient.list_instances(compartment_id=RootCompartmentID)
   instances = response.data
