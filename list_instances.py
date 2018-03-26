@@ -1,5 +1,5 @@
 # Oracle OCI - Instance report script
-# Version: 1.3 27-Feb 2018
+# Version: 1.4 26-March 2018
 # Written by: richard.garsthagen@oracle.com
 #
 # This script will create a CSV report for all compute instances in your OCI account,
@@ -9,8 +9,9 @@
 # - you need the OCI python API, this can be installed by running: pip install oci
 # - you need the OCI CLI, this can be installed by running: pip install oci-cli
 # - Make sure you have a user with an API key setup in the OCI Identity
-# - Create per region a config file using the oci cli tool by running: oci setup config
-# - In the script specify the config files to be used for running the report
+# - Create a config file using the oci cli tool by running: oci setup config
+# - In the script specify the config file to be used for running the report
+# - You can specify any region in the config file, the script will query all enabled regions
 
 import oci
 import json
@@ -18,7 +19,7 @@ import shapes
 
 # Script configuation ###################################################################################
 
-configs = ["c:\\oci\\config_frankfurt","c:\\oci\\config_phoenix","c:\\oci\\config_ashburn"] # Define config files to be used. You will need a seperate config file per region and/or account
+configfile = "c:\\oci\\config" # Define config files to be used. You will need a seperate config file per region and/or account
 AllPredefinedTags = True  # use only predefined tags from root compartment or include all compartment tags as well
 NoValueString = "n/a"      # what data should be used when no data is available
 ReportFile = "C:\\oci\\report.csv"
@@ -99,14 +100,24 @@ report = open(ReportFile,'w')
 
 customertags = []
 header = "Name,State,Service,Version,OS,Shape,OCPU,MEMORY,SSD,Compartment,AD,PrivateIP,PublicIP"
-config = oci.config.from_file(configs[0])
+config = oci.config.from_file(configfile)
 
 identity = oci.identity.IdentityClient(config)
 user = identity.get_user(config["user"]).data
 RootCompartmentID = user.compartment_id
   
 print ("Logged in as: {} @ {}".format(user.description, config["region"]))
-print (" ")
+print ("Querying Enabled Regions:")
+
+response = identity.list_region_subscriptions(config["tenancy"])
+regions = response.data
+
+for region in regions:
+  if region.is_home_region:
+    home = "Home region"
+  else:
+    home = ""
+  print ("- {} ({}) {}".format(region.region_name, region.status, home))
 
 
 # Get all the predefined tags, so the initial header line can be created.
@@ -137,8 +148,10 @@ report.write(header+EndLine)
 
 
 #Retrieve all instances for each config file (regions)
-for c in configs:
-  config = oci.config.from_file(c)
+
+for region in regions:
+  config = oci.config.from_file(configfile)
+  config["region"] = region.region_name
 
   identity = oci.identity.IdentityClient(config)
   user = identity.get_user(config["user"]).data
@@ -148,14 +161,21 @@ for c in configs:
   NetworkClient = oci.core.VirtualNetworkClient(config)
   
   # Check instances for the root container
-  response = ComputeClient.list_instances(compartment_id=RootCompartmentID)
-  instances = response.data
-  compartmentName = "Root"
-  DisplayInstances(instances, compartmentName, "Compute")
+  try:
+    response = ComputeClient.list_instances(compartment_id=RootCompartmentID)
+    instances = response.data
+    compartmentName = "Root"
+    DisplayInstances(instances, compartmentName, "Compute")
+  except:
+      print ("API error getting Compute info")
+    
 
-  databaseClient = oci.database.DatabaseClient(config)
-  response = databaseClient.list_db_systems(compartment_id=RootCompartmentID)
-  DisplayInstances(response.data, compartmentName, "DB")
+  try:
+    databaseClient = oci.database.DatabaseClient(config)
+    response = databaseClient.list_db_systems(compartment_id=RootCompartmentID)
+    DisplayInstances(response.data, compartmentName, "DB")
+  except:
+    print ("API error getting DB info")
   
 
   # Check instances for all the underlaying Compartments   
@@ -165,13 +185,20 @@ for c in configs:
     compartmentName = compartment.name
     
     compartmentID = compartment.id
-    response = ComputeClient.list_instances(compartment_id=compartmentID)
-    instances = response.data
-    DisplayInstances(instances, compartmentName, "Compute")
+    try:
+      response = ComputeClient.list_instances(compartment_id=compartmentID)
+      instances = response.data
+      DisplayInstances(instances, compartmentName, "Compute")
+    except:
+      print ("API error getting Compute info")
+      
 
-    databaseClient = oci.database.DatabaseClient(config)
-    response = databaseClient.list_db_systems(compartment_id=compartmentID)
-    DisplayInstances(response.data, compartmentName, "DB")
+    try:
+      databaseClient = oci.database.DatabaseClient(config)
+      response = databaseClient.list_db_systems(compartment_id=compartmentID)
+      DisplayInstances(response.data, compartmentName, "DB")
+    except:
+      print ("API error getting DB info")
     
 print (" ")
 print ("Done, report written to: {}".format(ReportFile))
