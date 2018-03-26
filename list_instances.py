@@ -19,9 +19,9 @@ import shapes
 
 # Script configuation ###################################################################################
 
-configfile = "c:\\oci\\config" # Define config file to be used. 
-AllPredefinedTags = True  # use only predefined tags from root compartment or include all compartment tags as well
-NoValueString = "n/a"      # what data should be used when no data is available
+configfile = "c:\\oci\\config"  # Define config file to be used. 
+AllPredefinedTags = True        # use only predefined tags from root compartment or include all compartment tags as well
+NoValueString = "n/a"           # what data should be used when no data is available
 ReportFile = "C:\\oci\\report.csv"
 EndLine = "\n"
 # #######################################################################################################
