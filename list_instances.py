@@ -1,5 +1,5 @@
 # Oracle OCI - Instance report script
-# Version: 1.4 26-March 2018
+# Version: 1.5 1-May 2018
 # Written by: richard.garsthagen@oracle.com
 #
 # This script will create a CSV report for all compute instances in your OCI account,
@@ -82,9 +82,15 @@ def DisplayInstances(instances, compartmentName, instancetype):
           publicips = NoValueString    
       
       instancetypename= "DB " + instance.database_edition
+      
       version = instance.version
+           
+      namespaces = instance.defined_tags
       for customertag in customertags:
-        tagtxt = tagtxt + "," + NoValueString
+      	try:
+           tagtxt = tagtxt + "," + namespaces[customertag[0]][customertag[1]]
+      	except:
+           tagtxt = tagtxt + "," + NoValueString
 
       OS = "Oracle Linux 6.8"
 
