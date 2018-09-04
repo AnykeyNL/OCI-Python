@@ -1,5 +1,5 @@
 # Oracle OCI - Instance report script
-# Version: 1.5 1-May 2018
+# Version: 1.6 4-September 2018
 # Written by: richard.garsthagen@oracle.com
 #
 # This script will create a CSV report for all compute instances in your OCI account,
@@ -21,7 +21,7 @@ import shapes
 
 configfile = "c:\\oci\\config"  # Define config file to be used. 
 AllPredefinedTags = True        # use only predefined tags from root compartment or include all compartment tags as well
-NoValueString = "n/a"           # what data should be used when no data is available
+NoValueString = "n/a"           # what value should be used when no data is available
 ReportFile = "C:\\oci\\report.csv"
 EndLine = "\n"
 # #######################################################################################################
@@ -55,9 +55,14 @@ def DisplayInstances(instances, compartmentName, instancetype):
       version = NoValueString
       namespaces = instance.defined_tags
 
-      response = ComputeClient.get_image(instance.source_details.image_id)
-      imagedetails = response.data
-      OS = imagedetails.display_name
+      # Get OS Details
+      try:
+        response = ComputeClient.get_image(instance.source_details.image_id)
+        imagedetails = response.data
+        OS = imagedetails.display_name
+      except:
+        OS = NoValueString
+
       
       for customertag in customertags:
          try:
@@ -84,13 +89,17 @@ def DisplayInstances(instances, compartmentName, instancetype):
       instancetypename= "DB " + instance.database_edition
       
       version = instance.version
-           
-      namespaces = instance.defined_tags
-      for customertag in customertags:
-        try:
-           tagtxt = tagtxt + "," + namespaces[customertag[0]][customertag[1]]
-        except:
-           tagtxt = tagtxt + "," + NoValueString
+
+      # Check if defined tags are available
+      try:     
+        namespaces = instance.defined_tags
+        for customertag in customertags:
+          try:
+             tagtxt = tagtxt + "," + namespaces[customertag[0]][customertag[1]]
+          except:
+             tagtxt = tagtxt + "," + NoValueString
+      except:
+        tagtxt = ""  # No Tags
 
       OS = "Oracle Linux 6.8"
 
@@ -173,15 +182,16 @@ for region in regions:
     compartmentName = "Root"
     DisplayInstances(instances, compartmentName, "Compute")
   except:
-      print ("API error getting Compute info")
+    print ("API error getting Compute info (root)")
     
 
   try:
     databaseClient = oci.database.DatabaseClient(config)
     response = databaseClient.list_db_systems(compartment_id=RootCompartmentID)
     DisplayInstances(response.data, compartmentName, "DB")
+
   except:
-    print ("API error getting DB info")
+    print ("API error getting DB info (root)")
   
 
   # Check instances for all the underlaying Compartments   
@@ -192,11 +202,12 @@ for region in regions:
     
     compartmentID = compartment.id
     try:
+   
       response = ComputeClient.list_instances(compartment_id=compartmentID)
       instances = response.data
       DisplayInstances(instances, compartmentName, "Compute")
     except:
-      print ("API error getting Compute info")
+     print ("API error getting Compute info")
       
 
     try:
