@@ -87,9 +87,9 @@ def DisplayInstances(instances, compartmentName, instancetype):
            
       namespaces = instance.defined_tags
       for customertag in customertags:
-      	try:
+        try:
            tagtxt = tagtxt + "," + namespaces[customertag[0]][customertag[1]]
-      	except:
+        except:
            tagtxt = tagtxt + "," + NoValueString
 
       OS = "Oracle Linux 6.8"
