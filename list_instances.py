@@ -22,7 +22,7 @@ import shapes
 configfile = "c:\\oci\\config"  # Define config file to be used. 
 AllPredefinedTags = True        # use only predefined tags from root compartment or include all compartment tags as well
 NoValueString = "n/a"           # what value should be used when no data is available
-FieldSeperator = "|"            # what value should be used as field seperator
+FieldSeperator = ","            # what value should be used as field seperator
 ReportFile = "C:\\oci\\report.csv"
 EndLine = "\n"
 
@@ -102,7 +102,7 @@ def DisplayInstances(instances, compartmentName, instancetype, regionname):
     if instancetype == "ATP":
       OCPU = instance.cpu_core_count
       MEM = NoValueString
-      SSD = instance.data_storage_size_in_tbs) 
+      SSD = instance.data_storage_size_in_tbs
       instancetypename = "ATP"
       version = NoValueString
       OS = NoValueString
@@ -119,7 +119,7 @@ def DisplayInstances(instances, compartmentName, instancetype, regionname):
     if instancetype == "ADW":
       OCPU = instance.cpu_core_count
       MEM = NoValueString
-      SSD = instance.data_storage_size_in_tbs) 
+      SSD = instance.data_storage_size_in_tbs
       instancetypename = "ADW"
       version = NoValueString
       OS = NoValueString
