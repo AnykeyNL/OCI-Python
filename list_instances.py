@@ -2,8 +2,8 @@
 # Version: 1.7 10-September 2018
 # Written by: richard.garsthagen@oracle.com
 #
-# This script will create a CSV report for all compute and DB instances in your OCI account,
-# including predefined tags
+# This script will create a CSV report for all compute and DB instances (including ADW and ATP)
+# in your OCI account, including predefined tags
 #
 # Instructions:
 # - you need the OCI python API, this can be installed by running: pip install oci
@@ -106,7 +106,7 @@ def DisplayInstances(instances, compartmentName, instancetype, regionname):
       instancetypename = "ATP"
       version = NoValueString
       OS = NoValueString
-      shape = NoValueString
+      shape = "ATP"
       AD = regionname.upper()
       privateips = NoValueString
       publicips = NoValueString
@@ -123,7 +123,7 @@ def DisplayInstances(instances, compartmentName, instancetype, regionname):
       instancetypename = "ADW"
       version = NoValueString
       OS = NoValueString
-      shape = NoValueString
+      shape = "ADW"
       AD = regionname.upper()
       privateips = NoValueString
       publicips = NoValueString
