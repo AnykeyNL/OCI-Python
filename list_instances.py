@@ -1,8 +1,8 @@
 # Oracle OCI - Instance report script
-# Version: 1.6 4-September 2018
+# Version: 1.7 10-September 2018
 # Written by: richard.garsthagen@oracle.com
 #
-# This script will create a CSV report for all compute instances in your OCI account,
+# This script will create a CSV report for all compute and DB instances in your OCI account,
 # including predefined tags
 #
 # Instructions:
@@ -22,18 +22,21 @@ import shapes
 configfile = "c:\\oci\\config"  # Define config file to be used. 
 AllPredefinedTags = True        # use only predefined tags from root compartment or include all compartment tags as well
 NoValueString = "n/a"           # what value should be used when no data is available
+FieldSeperator = "|"            # what value should be used as field seperator
 ReportFile = "C:\\oci\\report.csv"
 EndLine = "\n"
+
 # #######################################################################################################
 
 
-def DisplayInstances(instances, compartmentName, instancetype):
+def DisplayInstances(instances, compartmentName, instancetype, regionname):
   for instance in instances:
     privateips = ""
     publicips = ""
     instancetypename = ""
     tagtxt = ""
     OS = ""
+    LicenseIncluded = ""
  
     #print (instance)
     # Handle details for Compute Instances
@@ -55,6 +58,8 @@ def DisplayInstances(instances, compartmentName, instancetype):
       version = NoValueString
       namespaces = instance.defined_tags
 
+      shape = instance.shape
+
       # Get OS Details
       try:
         response = ComputeClient.get_image(instance.source_details.image_id)
@@ -62,13 +67,9 @@ def DisplayInstances(instances, compartmentName, instancetype):
         OS = imagedetails.display_name
       except:
         OS = NoValueString
-
       
-      for customertag in customertags:
-         try:
-           tagtxt = tagtxt + "," + namespaces[customertag[0]][customertag[1]]
-         except:
-           tagtxt = tagtxt + "," + NoValueString
+      prefix,AD = instance.availability_domain.split(":")
+      LicenseIncluded = "BYOL"
 
     # Handle details for Database Instances
     if instancetype=="DB":
@@ -84,29 +85,80 @@ def DisplayInstances(instances, compartmentName, instancetype):
           publicips = publicips + nicinfo.public_ip + " "
       except:
           privateips = NoValueString
-          publicips = NoValueString    
+          publicips = NoValueString
+          
+      if instance.license_model == "LICENSE_INCLUDED":
+        LicenseIncluded = "YES"
+      else:
+        LicenseIncluded = "BYOL"
       
       instancetypename= "DB " + instance.database_edition
-      
       version = instance.version
-
-      # Check if defined tags are available
-      try:     
-        namespaces = instance.defined_tags
-        for customertag in customertags:
-          try:
-             tagtxt = tagtxt + "," + namespaces[customertag[0]][customertag[1]]
-          except:
-             tagtxt = tagtxt + "," + NoValueString
-      except:
-        tagtxt = ""  # No Tags
-
       OS = "Oracle Linux 6.8"
+      shape = instance.shape
+      prefix,AD = instance.availability_domain.split(":")
 
-    # Remove prefix from AD Domain
-    prefix,AD = instance.availability_domain.split(":")
+    # Handle details for Autonomous Database (ATP)
+    if instancetype == "ATP":
+      OCPU = instance.cpu_core_count
+      MEM = NoValueString
+      SSD = instance.data_storage_size_in_tbs) 
+      instancetypename = "ATP"
+      version = NoValueString
+      OS = NoValueString
+      shape = NoValueString
+      AD = regionname.upper()
+      privateips = NoValueString
+      publicips = NoValueString
+      if instance.license_model == "LICENSE_INCLUDED":
+        LicenseIncluded = "YES"
+      else:
+        LicenseIncluded = "BYOL"
+
+    # Handle details for Autonomous Database (ADW)
+    if instancetype == "ADW":
+      OCPU = instance.cpu_core_count
+      MEM = NoValueString
+      SSD = instance.data_storage_size_in_tbs) 
+      instancetypename = "ADW"
+      version = NoValueString
+      OS = NoValueString
+      shape = NoValueString
+      AD = regionname.upper()
+      privateips = NoValueString
+      publicips = NoValueString
+      if instance.license_model == "LICENSE_INCLUDED":
+        LicenseIncluded = "YES"
+      else:
+        LicenseIncluded = "BYOL"
+    
+    try:     
+      namespaces = instance.defined_tags
+      for customertag in customertags:
+        try:
+           tagtxt = tagtxt + FieldSeperator + namespaces[customertag[0]][customertag[1]]
+        except:
+           tagtxt = tagtxt + FieldSeperator + NoValueString
+    except:
+      tagtxt = ""  # No Tags
       
-    line = "{},{},{},{},{},{},{},{},{},{},{},{},{}{}".format(instance.display_name, instance.lifecycle_state, instancetypename, version, OS, instance.shape, OCPU, MEM, SSD, compartmentName, AD, privateips, publicips, tagtxt)
+
+    #line = "{},{},{},{},{},{},{},{},{},{},{},{},{},{}{}".format(instance.display_name, instance.lifecycle_state, instancetypename, LicenseIncluded, version, OS, shape, OCPU, MEM, SSD, compartmentName, AD, privateips, publicips, tagtxt)
+    line =   "{}{}".format(      instance.display_name,    FieldSeperator)
+    line = "{}{}{}".format(line, instance.lifecycle_state, FieldSeperator)
+    line = "{}{}{}".format(line, instancetypename,         FieldSeperator)
+    line = "{}{}{}".format(line, LicenseIncluded,          FieldSeperator)
+    line = "{}{}{}".format(line, version,                  FieldSeperator)
+    line = "{}{}{}".format(line, OS,                       FieldSeperator)
+    line = "{}{}{}".format(line, shape,                    FieldSeperator)
+    line = "{}{}{}".format(line, OCPU,                     FieldSeperator)
+    line = "{}{}{}".format(line, MEM,                      FieldSeperator)
+    line = "{}{}{}".format(line, SSD,                      FieldSeperator)
+    line = "{}{}{}".format(line, compartmentName,          FieldSeperator)
+    line = "{}{}{}".format(line, AD,                       FieldSeperator)
+    line = "{}{}{}".format(line, privateips,               FieldSeperator)
+    line = "{}{}".format(line, publicips)
+    line = "{}{}".format(line, tagtxt)
     print (line)
     report.write(line + EndLine)    
 
@@ -114,7 +166,7 @@ def DisplayInstances(instances, compartmentName, instancetype):
 report = open(ReportFile,'w')
 
 customertags = []
-header = "Name,State,Service,Version,OS,Shape,OCPU,MEMORY,SSD,Compartment,AD,PrivateIP,PublicIP"
+header = "Name,State,Service,Licensed,Version,OS,Shape,OCPU,MEMORY,SSD TB,Compartment,AD,PrivateIP,PublicIP".replace(",", FieldSeperator)
 config = oci.config.from_file(configfile)
 
 identity = oci.identity.IdentityClient(config)
@@ -143,7 +195,7 @@ for namespace in tags_namespaces:
   tags = tagresponse.data
   for tag in tags:
     customertags.append([namespace.name,tag.name])
-    header = header + ",{}.{}".format(namespace.name,tag.name)
+    header = header + FieldSeperator +  "{}.{}".format(namespace.name,tag.name)
 
 if AllPredefinedTags:
   response = identity.list_compartments(RootCompartmentID)
@@ -156,7 +208,7 @@ if AllPredefinedTags:
       tags = tagresponse.data
       for tag in tags:
         customertags.append([namespace.name,tag.name])
-        header = header + ",{}.{}".format(namespace.name,tag.name)
+        header = header + FieldSeperator + "{}.{}".format(namespace.name,tag.name)
 
 print (header)
 report.write(header+EndLine)
@@ -175,47 +227,46 @@ for region in regions:
   ComputeClient = oci.core.ComputeClient(config)
   NetworkClient = oci.core.VirtualNetworkClient(config)
   
-  # Check instances for the root container
-  try:
-    response = ComputeClient.list_instances(compartment_id=RootCompartmentID)
-    instances = response.data
-    compartmentName = "Root"
-    DisplayInstances(instances, compartmentName, "Compute")
-  except:
-    print ("API error getting Compute info (root)")
-    
-
-  try:
-    databaseClient = oci.database.DatabaseClient(config)
-    response = databaseClient.list_db_systems(compartment_id=RootCompartmentID)
-    DisplayInstances(response.data, compartmentName, "DB")
-
-  except:
-    print ("API error getting DB info (root)")
   
-
   # Check instances for all the underlaying Compartments   
   response = identity.list_compartments(RootCompartmentID)
   compartments = response.data
+
+  # Insert (on top) the root compartment
+  RootCompartment = oci.identity.models.Compartment()
+  RootCompartment.id = RootCompartmentID
+  RootCompartment.name = "root"
+  compartments.insert(0, RootCompartment)
+  
   for compartment in compartments:
     compartmentName = compartment.name
-    
     compartmentID = compartment.id
+    #try:
+    response = ComputeClient.list_instances(compartment_id=compartmentID)
+    instances = response.data
+    DisplayInstances(instances, compartmentName, "Compute", region.region_name)
+    #except:
+    # print ("No Compute instances")
+
+    databaseClient = oci.database.DatabaseClient(config)
     try:
-   
-      response = ComputeClient.list_instances(compartment_id=compartmentID)
-      instances = response.data
-      DisplayInstances(instances, compartmentName, "Compute")
+      response = databaseClient.list_db_systems(compartment_id=compartmentID)
+      DisplayInstances(response.data, compartmentName, "DB", region.region_name)
     except:
-     print ("API error getting Compute info")
-      
+      print ("No DB instances")
 
     try:
-      databaseClient = oci.database.DatabaseClient(config)
-      response = databaseClient.list_db_systems(compartment_id=compartmentID)
-      DisplayInstances(response.data, compartmentName, "DB")
+      response = databaseClient.list_autonomous_data_warehouses(compartment_id=compartmentID)
+      DisplayInstances(response.data, compartmentName, "ADW", region.region_name)
     except:
-      print ("API error getting DB info")
+      print ("No ADW instances")
+
+    try:
+      response = databaseClient.list_autonomous_databases(compartment_id=compartmentID)
+      DisplayInstances(response.data, compartmentName, "ATP", region.region_name)
+    except:
+      print ("No ATP instances")
+
     
 print (" ")
 print ("Done, report written to: {}".format(ReportFile))
