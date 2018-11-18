@@ -1,5 +1,5 @@
 # Oracle OCI - Instance report script
-# Version: 1.7 10-September 2018
+# Version: 1.8 18-November 2018
 # Written by: richard.garsthagen@oracle.com
 #
 # This script will create a CSV report for all compute and DB instances (including ADW and ATP)
@@ -16,6 +16,7 @@
 import oci
 import json
 import shapes
+import logging
 
 # Script configuation ###################################################################################
 
@@ -28,6 +29,8 @@ EndLine = "\n"
 
 # #######################################################################################################
 
+
+#logging.basicConfig(format='%(asctime)s %(message)s', level=logging.INFO)
 
 def DisplayInstances(instances, compartmentName, instancetype, regionname):
   for instance in instances:
@@ -229,7 +232,7 @@ for region in regions:
   
   
   # Check instances for all the underlaying Compartments   
-  response = identity.list_compartments(RootCompartmentID)
+  response = identity.list_compartments(RootCompartmentID,compartment_id_in_subtree=True)
   compartments = response.data
 
   # Insert (on top) the root compartment
@@ -240,32 +243,36 @@ for region in regions:
   
   for compartment in compartments:
     compartmentName = compartment.name
+    print ("Compartment:" + compartmentName)
     compartmentID = compartment.id
-    #try:
-    response = ComputeClient.list_instances(compartment_id=compartmentID)
-    instances = response.data
-    DisplayInstances(instances, compartmentName, "Compute", region.region_name)
-    #except:
-    # print ("No Compute instances")
+    try:
+      response = ComputeClient.list_instances(compartment_id=compartmentID)
+      if len(response.data) > 0:
+        DisplayInstances(response.data, compartmentName, "Compute", region.region_name)
+    except:
+      print ("Error?")
 
     databaseClient = oci.database.DatabaseClient(config)
     try:
       response = databaseClient.list_db_systems(compartment_id=compartmentID)
-      DisplayInstances(response.data, compartmentName, "DB", region.region_name)
+      if len(response.data) > 0:
+        DisplayInstances(response.data, compartmentName, "DB", region.region_name)
     except:
-      print ("No DB instances")
+      print ("Error?")
 
     try:
       response = databaseClient.list_autonomous_data_warehouses(compartment_id=compartmentID)
-      DisplayInstances(response.data, compartmentName, "ADW", region.region_name)
+      if len(response.data) > 0:
+        DisplayInstances(response.data, compartmentName, "ADW", region.region_name)
     except:
-      print ("No ADW instances")
+      print ("Error?")
 
     try:
       response = databaseClient.list_autonomous_databases(compartment_id=compartmentID)
-      DisplayInstances(response.data, compartmentName, "ATP", region.region_name)
+      if len(response.data) > 0:
+        DisplayInstances(response.data, compartmentName, "ATP", region.region_name)
     except:
-      print ("No ATP instances")
+      print ("Error?")
 
     
 print (" ")
