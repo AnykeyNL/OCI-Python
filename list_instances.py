@@ -1,5 +1,5 @@
 # Oracle OCI - Instance report script
-# Version: 1.8 18-November 2018
+# Version: 1.8 22-November 2018
 # Written by: richard.garsthagen@oracle.com
 #
 # This script will create a CSV report for all compute and DB instances (including ADW and ATP)
@@ -232,47 +232,52 @@ for region in regions:
   
   
   # Check instances for all the underlaying Compartments   
-  response = identity.list_compartments(RootCompartmentID,compartment_id_in_subtree=True)
+  response = oci.pagination.list_call_get_all_results(identity.list_compartments,RootCompartmentID,compartment_id_in_subtree=True)
   compartments = response.data
 
   # Insert (on top) the root compartment
   RootCompartment = oci.identity.models.Compartment()
   RootCompartment.id = RootCompartmentID
   RootCompartment.name = "root"
+  RootCompartment.lifecycle_state = "ACTIVE"
   compartments.insert(0, RootCompartment)
   
   for compartment in compartments:
     compartmentName = compartment.name
-    print ("Compartment:" + compartmentName)
-    compartmentID = compartment.id
-    try:
-      response = ComputeClient.list_instances(compartment_id=compartmentID)
-      if len(response.data) > 0:
-        DisplayInstances(response.data, compartmentName, "Compute", region.region_name)
-    except:
-      print ("Error?")
+    #print ("Checking : " + compartment.name)
+    if compartment.lifecycle_state == "ACTIVE":
+      print ("process Compartment:" + compartmentName)
+      
+      compartmentID = compartment.id
+      try:
+        response = oci.pagination.list_call_get_all_results(ComputeClient.list_instances,compartment_id=compartmentID)
+        
+        if len(response.data) > 0:
+          DisplayInstances(response.data, compartmentName, "Compute", region.region_name)
+      except:
+        print ("Error?")
 
-    databaseClient = oci.database.DatabaseClient(config)
-    try:
-      response = databaseClient.list_db_systems(compartment_id=compartmentID)
-      if len(response.data) > 0:
-        DisplayInstances(response.data, compartmentName, "DB", region.region_name)
-    except:
-      print ("Error?")
+      databaseClient = oci.database.DatabaseClient(config)
+      try:
+        response = oci.pagination.list_call_get_all_results(databaseClient.list_db_systems,compartment_id=compartmentID)
+        if len(response.data) > 0:
+          DisplayInstances(response.data, compartmentName, "DB", region.region_name)
+      except:
+        print ("Error?")
 
-    try:
-      response = databaseClient.list_autonomous_data_warehouses(compartment_id=compartmentID)
-      if len(response.data) > 0:
-        DisplayInstances(response.data, compartmentName, "ADW", region.region_name)
-    except:
-      print ("Error?")
+      try:
+        response = oci.pagination.list_call_get_all_results(databaseClient.list_autonomous_data_warehouses,compartment_id=compartmentID)
+        if len(response.data) > 0:
+          DisplayInstances(response.data, compartmentName, "ADW", region.region_name)
+      except:
+        print ("Error?")
 
-    try:
-      response = databaseClient.list_autonomous_databases(compartment_id=compartmentID)
-      if len(response.data) > 0:
-        DisplayInstances(response.data, compartmentName, "ATP", region.region_name)
-    except:
-      print ("Error?")
+      try:
+        response = oci.pagination.list_call_get_all_results(databaseClient.list_autonomous_databases,compartment_id=compartmentID)
+        if len(response.data) > 0:
+          DisplayInstances(response.data, compartmentName, "ATP", region.region_name)
+      except:
+        print ("Error?")
 
     
 print (" ")
