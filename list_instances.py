@@ -1,6 +1,7 @@
 # Oracle OCI - Instance report script
 # Version: 1.8 22-November 2018
-# Written by: richard.garsthagen@oracle.com
+# Written by: richard@oc-blog.com
+# More info see: www.oc-blog.com
 #
 # This script will create a CSV report for all compute and DB instances (including ADW and ATP)
 # in your OCI account, including predefined tags

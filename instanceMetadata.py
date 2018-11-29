@@ -1,5 +1,8 @@
 # Get Instance Meta Data
 # More info: https://docs.cloud.oracle.com/iaas/Content/Compute/Tasks/gettingmetadata.htm
+# 
+# Written by: richard@oc-blog.com
+# More info see: www.oc-blog.com
 
 try:
     # For Python 3.0 and later
