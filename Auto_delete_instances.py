@@ -38,8 +38,8 @@ def EvaluateInstances(instances, compartmentName, instancetype, regionname):
     tagtxt = "" 
     try:     
       namespaces = instance.defined_tags
-      Tag1 = namespaces["Project"]["Owner"]
-      Tag2 = namespaces["Project"]["OwnerEmail"]  
+      Tag1 = namespaces["Mandatory__Tags"]["CSM_EMAIL"]
+      Tag2 = namespaces["Mandatory__Tags"]["CSM_COUNTRY"]  
       # print (" --> OK Instance: " + instance.display_name)
     except:
       item = OCIobject(instancetype, instance.id, regionname, instance.display_name)
@@ -58,6 +58,14 @@ print ("Querying Enabled Regions:")
 response = identity.list_region_subscriptions(config["tenancy"])
 regions = response.data
 
+for region in regions:
+  if region.is_home_region:
+    home = "Home region"
+  else:
+    home = ""
+  print ("- {} ({}) {}".format(region.region_name, region.status, home))
+
+print ("Checking instances for missing Tags...")
 
 #Retrieve all instances for all enabled regions.
 
@@ -86,15 +94,15 @@ for region in regions:
   
   for compartment in compartments:
     compartmentName = compartment.name
-    #print ("Checking : " + compartment.name)
+    print ("Checking : " + compartment.name + " in " + region.region_name)
     if compartment.lifecycle_state == "ACTIVE":
       compartmentID = compartment.id
-      #try:
-      response = oci.pagination.list_call_get_all_results(ComputeClient.list_instances,compartment_id=compartmentID)
-      if len(response.data) > 0:
-        EvaluateInstances(response.data, compartmentName, "Compute", region.region_name)
-      #except:
-      #  print ("Error?")
+      try:
+          response = oci.pagination.list_call_get_all_results(ComputeClient.list_instances,compartment_id=compartmentID)
+          if len(response.data) > 0:
+              EvaluateInstances(response.data, compartmentName, "Compute", region.region_name)
+      except:
+          donothing = 1
 
       databaseClient = oci.database.DatabaseClient(config)
       try:
@@ -102,25 +110,22 @@ for region in regions:
         if len(response.data) > 0:
           EvaluateInstances(response.data, compartmentName, "DB", region.region_name)
       except:
-        print ("Error?")
+          donothing = 1
 
       try:
         response = oci.pagination.list_call_get_all_results(databaseClient.list_autonomous_data_warehouses,compartment_id=compartmentID)
         if len(response.data) > 0:
           EvaluateInstances(response.data, compartmentName, "ADW", region.region_name)
       except:
-        print ("Error?")
+        donothing = 1
 
       try:
         response = oci.pagination.list_call_get_all_results(databaseClient.list_autonomous_databases,compartment_id=compartmentID)
         if len(response.data) > 0:
           EvaluateInstances(response.data, compartmentName, "ATP", region.region_name)
       except:
-        print ("Error?")
-  break
-
-
-    
+        donothing = 1
+  
 print (" ")
 print ("Instances that are missing mandatory tags:")
 for i in deleteList:
@@ -129,7 +134,24 @@ for i in deleteList:
 r = input ("Do you really want to delete these instances (y/n)?")
 
 if r == "y" or r == "Y":
-  print ("Starting delete process")
+    print ("Starting delete process")
+    for i in deleteList:
+        print ("Deleting " + i.Name)
+        config["region"] = i.Region
+        if i.Service == "Compute":
+            ComputeClient = oci.core.ComputeClient(config)
+            response = ComputeClient.terminate_instance(instance_id=i.OCID)
+        if i.Service == "DB":
+            databaseClient = oci.database.DatabaseClient(config)
+            response = databaseClient.terminate_db_system(db_system_id=i.OCID)
+        if i.Service == "ADW":
+            databaseClient = oci.database.DatabaseClient(config)
+            response = databaseClient.delete_autonomous_data_warehouse(autonomous_data_warehouse_id=i.OCID)
+        if i.Service == "ATP":
+            databaseClient = oci.database.DatabaseClient(config)
+            response = databaseClient.delete_autonomous_database(autonomous_database_id=i.OCID)
+    Print ("Cleaning process completed")
+
 else:
   print ("Cancelled")
 
