@@ -18,6 +18,7 @@ import oci
 import json
 import shapes
 import logging
+import sys
 
 # Script configuation ###################################################################################
 
@@ -167,17 +168,24 @@ def DisplayInstances(instances, compartmentName, instancetype, regionname):
     report.write(line + EndLine)    
 
 #Do only once
+
+# Get profile from command line
+if len(sys.argv) == 2:
+  profile = sys.argv[1]
+else:
+  profile='DEFAULT'
+
 report = open(ReportFile,'w')
 
 customertags = []
 header = "Name,State,Service,Licensed,Version,OS,Shape,OCPU,MEMORY,SSD TB,Compartment,AD,PrivateIP,PublicIP".replace(",", FieldSeperator)
-config = oci.config.from_file(configfile)
+config = oci.config.from_file(configfile, profile_name=profile)
 
 identity = oci.identity.IdentityClient(config)
 user = identity.get_user(config["user"]).data
 RootCompartmentID = user.compartment_id
   
-print ("Logged in as: {} @ {}".format(user.description, config["region"]))
+print ("Logged in as: {} @ {}  (Profile={})".format(user.description, config["region"], profile))
 print ("Querying Enabled Regions:")
 
 response = identity.list_region_subscriptions(config["tenancy"])
@@ -221,7 +229,7 @@ report.write(header+EndLine)
 #Retrieve all instances for each config file (regions)
 
 for region in regions:
-  config = oci.config.from_file(configfile)
+  config = oci.config.from_file(configfile, profile_name=profile)
   config["region"] = region.region_name
 
   identity = oci.identity.IdentityClient(config)
