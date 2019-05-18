@@ -8,3 +8,7 @@ Samples scripts:
 - List instances: This creates a CSV file with all Instances and details, across all compartments and regions, including predefined tags
 
 ![alt text](https://raw.githubusercontent.com/AnykeyNL/OCI-Python/master/example.png)
+
+
+## Disclaimer
+This is a personal repositorie. Any code, views or opinions represented here are personal and belong solely to me and do not represent those of people, institutions or organizations that I may or may not be associated with in professional or personal capacity, unless explicitly stated.
